@@ -91,7 +91,7 @@ export default function LoginRegister({ onLogin }: LoginRegisterProps) {
             <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 text-left">
               Select Operating Role
             </label>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => setRole('patient')}
@@ -115,18 +115,6 @@ export default function LoginRegister({ onLogin }: LoginRegisterProps) {
               >
                 <Users className="h-4 w-4 mb-1.5" />
                 <span className="text-[11px]">Clinician</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('admin')}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-smooth text-center cursor-pointer ${
-                  role === 'admin'
-                    ? 'border-amber-500 bg-amber-50 text-amber-700 font-bold'
-                    : 'border-zinc-200 hover:border-zinc-305 text-zinc-550'
-                }`}
-              >
-                <Shield className="h-4 w-4 mb-1.5" />
-                <span className="text-[11px]">Admin</span>
               </button>
             </div>
           </div>
@@ -171,12 +159,6 @@ export default function LoginRegister({ onLogin }: LoginRegisterProps) {
               className="text-[10px] font-semibold px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-lg transition-smooth cursor-pointer shadow-sm"
             >
               Dr. Sara (Clinician)
-            </button>
-            <button
-              onClick={() => { loadDemoUser('admin'); onLogin('admin@salama.ai', 'System Admin', 'admin'); }}
-              className="text-[10px] font-semibold px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-lg transition-smooth cursor-pointer shadow-sm"
-            >
-              Admin Console
             </button>
           </div>
         </div>

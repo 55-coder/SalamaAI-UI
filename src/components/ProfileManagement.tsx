@@ -24,6 +24,8 @@ export default function ProfileManagement({ profile, onSave, onBack }: ProfileMa
   const [physicalActivity, setPhysicalActivity] = useState(profile.physicalActivity);
   const [stressLevel, setStressLevel] = useState(profile.stressLevel);
   const [sleepQuality, setSleepQuality] = useState(profile.sleepQuality);
+  const [onBpMedication, setOnBpMedication] = useState(profile.on_bp_medication || false);
+  const [bpMedicationType, setBpMedicationType] = useState(profile.bp_medication_type || 'none');
   
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -41,6 +43,8 @@ export default function ProfileManagement({ profile, onSave, onBack }: ProfileMa
       physicalActivity,
       stressLevel,
       sleepQuality,
+      on_bp_medication: onBpMedication,
+      bp_medication_type: bpMedicationType,
     });
     setSaveSuccess(true);
     setTimeout(() => {
@@ -232,6 +236,40 @@ export default function ProfileManagement({ profile, onSave, onBack }: ProfileMa
                     <option value="excellent">Excellent</option>
                   </select>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Hypertension & Cardiovascular Therapeutics */}
+          <div className="border-t border-zinc-200 pt-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 font-mono mb-3.5 text-left">4. Cardiovascular Therapeutics</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5 text-left">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Active BP Medication Status</label>
+                <label className="flex items-center space-x-3 rounded-xl bg-zinc-50 p-3.5 border border-zinc-200 cursor-pointer hover:border-emerald-250 hover:bg-emerald-50/20 transition-smooth select-none">
+                  <input 
+                    type="checkbox" 
+                    checked={onBpMedication}
+                    onChange={e => setOnBpMedication(e.target.checked)}
+                    className="rounded bg-white border-zinc-300 text-emerald-600 h-4.5 w-4.5 outline-none cursor-pointer" 
+                  />
+                  <span className="text-xs text-zinc-700 font-bold">Taking Blood Pressure medication</span>
+                </label>
+              </div>
+
+              <div className="space-y-1.5 text-left">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">BP Medication Class Type</label>
+                <select 
+                  value={bpMedicationType}
+                  onChange={e => setBpMedicationType(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-2.5 sm:px-3 py-3 text-xs sm:text-sm font-semibold text-zinc-800 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 transition-smooth cursor-pointer"
+                >
+                  <option value="none">None / No active drugs</option>
+                  <option value="beta-blockers">Beta-blockers (e.g. Metoprolol)</option>
+                  <option value="ace-inhibitors">ACE Inhibitors (e.g. Lisinopril)</option>
+                  <option value="calcium-channel-blockers">Calcium Channel Blockers (e.g. Amlodipine)</option>
+                  <option value="diuretics">Thiazide Diuretics (e.g. Hydrochlorothiazide)</option>
+                </select>
               </div>
             </div>
           </div>

@@ -3,8 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Users, Search, AlertCircle, FileText, Sliders, Activity, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Users, Search, AlertCircle, FileText, Sliders, Activity, Check,
+  Calendar, Pill, Clock, Video, MapPin, Plus, Trash2, ShieldAlert
+} from 'lucide-react';
 import { Assessment, Notification } from '../types';
 
 interface ClinicianDashboardProps {
@@ -23,6 +26,36 @@ export default function ClinicianDashboard({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'high_risk' | 'intermediate'>('all');
   const [selectedPatientEmail, setSelectedPatientEmail] = useState<string | null>(null);
+
+  // Synchronized clinical sub-state trackers
+  const [activeAppointments, setActiveAppointments] = useState<any[]>([]);
+  const [activePrescriptions, setActivePrescriptions] = useState<any[]>([]);
+  const [clinicianProfile, setClinicianProfile] = useState<any>(null);
+
+  // Form scheduling states
+  const [showScheduleForm, setShowScheduleForm] = useState<boolean>(false);
+  const [apptDatetime, setApptDatetime] = useState<string>('');
+  const [apptType, setApptType] = useState<'virtual' | 'in_person'>('virtual');
+  const [apptNotes, setApptNotes] = useState<string>('');
+  const [isSubmittingAppt, setIsSubmittingAppt] = useState<boolean>(false);
+
+  // Form prescription states
+  const [showPrescriptionForm, setShowPrescriptionForm] = useState<boolean>(false);
+  const [rxMeds, setRxMeds] = useState<string>('');
+  const [rxDosage, setRxDosage] = useState<string>('');
+  const [rxIndications, setRxIndications] = useState<string>('');
+  const [isSubmittingRx, setIsSubmittingRx] = useState<boolean>(false);
+
+  // Active clinician context email
+  const currentClinicianEmail = "sara.patel@salama.ai";
+
+  // Fetch active clinician profile on mount
+  useEffect(() => {
+    fetch(`/api/clinicians/clinicians/me?email=${encodeURIComponent(currentClinicianEmail)}`)
+      .then(res => res.json())
+      .then(data => setClinicianProfile(data))
+      .catch(err => console.error("Error loaded clinician profile context:", err));
+  }, []);
 
   // Filter list of alert notifications for clinician role
   const alertNotifications = notifications.filter(
@@ -70,6 +103,110 @@ export default function ClinicianDashboard({
   const activePatient = selectedPatientEmail 
     ? patientEntries.find(p => p.email.toLowerCase() === selectedPatientEmail.toLowerCase()) 
     : (filteredPatients[0] || null);
+
+  const fetchPatientVitalsAndSchedule = async () => {
+    if (!activePatient) return;
+    try {
+      const aRes = await fetch(`/api/appointments/appointments/me?email=${encodeURIComponent(activePatient.email)}`);
+      if (aRes.ok) {
+        const aData = await aRes.json();
+        setActiveAppointments(aData);
+      }
+      
+      const pRes = await fetch(`/api/clinicians/clinicians/me/prescriptions?patient_email=${encodeURIComponent(activePatient.email)}`);
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        setActivePrescriptions(pData);
+      }
+    } catch (err) {
+      console.error("Error loaded patient telemetry links:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatientVitalsAndSchedule();
+  }, [activePatient?.email]);
+
+  const handleScheduleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePatient || !apptDatetime) return;
+
+    setIsSubmittingAppt(true);
+    try {
+      const res = await fetch('/api/clinicians/clinicians/me/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientEmail: activePatient.email,
+          patientName: activePatient.name,
+          datetime: apptDatetime,
+          type: apptType,
+          notes: apptNotes,
+          clinicianEmail: currentClinicianEmail
+        })
+      });
+
+      if (res.ok) {
+        setShowScheduleForm(false);
+        setApptDatetime('');
+        setApptNotes('');
+        fetchPatientVitalsAndSchedule();
+      }
+    } catch (err) {
+      console.error("Scheduling error:", err);
+    } finally {
+      setIsSubmittingAppt(false);
+    }
+  };
+
+  const handlePrescriptionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePatient || !rxMeds) return;
+
+    setIsSubmittingRx(true);
+    try {
+      const res = await fetch('/api/clinicians/clinicians/me/prescriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientEmail: activePatient.email,
+          patientName: activePatient.name,
+          medicationName: rxMeds,
+          dosage: rxDosage,
+          indications: rxIndications,
+          clinicianEmail: currentClinicianEmail
+        })
+      });
+
+      if (res.ok) {
+        setShowPrescriptionForm(false);
+        setRxMeds('');
+        setRxDosage('');
+        setRxIndications('');
+        fetchPatientVitalsAndSchedule();
+      }
+    } catch (err) {
+      console.error("Prescribing error:", err);
+    } finally {
+      setIsSubmittingRx(false);
+    }
+  };
+
+  const handleUpdateApptStatus = async (apptId: string, status: string) => {
+    try {
+      const res = await fetch(`/api/clinicians/clinicians/me/appointments/${apptId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+
+      if (res.ok) {
+        fetchPatientVitalsAndSchedule();
+      }
+    } catch (err) {
+      console.error("Status update error:", err);
+    }
+  };
 
   const getRiskBadgeColor = (cat: string) => {
     switch (cat) {
@@ -478,6 +615,234 @@ export default function ClinicianDashboard({
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Care Plan, Consultations & Prescriptions System */}
+              <div className="border-t border-zinc-150 pt-6 space-y-6 text-left">
+                <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                  <h3 className="font-display font-extrabold text-zinc-900 text-sm sm:text-base flex items-center gap-2">
+                    <Calendar className="h-4.5 w-4.5 text-emerald-650" />
+                    <span>Care Plan & Consultations Hub</span>
+                  </h3>
+                  <span className="text-[10px] font-mono text-zinc-400 font-bold uppercase">Dynamic Telemedicine Nodes</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                  
+                  {/* LEFT COLUMN: Appointments Calendar & Schedulers */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10.5px] uppercase font-bold text-zinc-400 font-mono">Teledoctor Appointments</span>
+                      <button
+                        onClick={() => setShowScheduleForm(!showScheduleForm)}
+                        className="text-[10.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded transition-smooth cursor-pointer"
+                      >
+                        {showScheduleForm ? 'Close Scheduler' : 'Schedule Appointment'}
+                      </button>
+                    </div>
+
+                    {showScheduleForm && (
+                      <form onSubmit={handleScheduleSubmit} className="bg-zinc-50 border border-zinc-200 rounded-xl p-4.5 space-y-3.5 text-xs animate-in fade-in slide-in-from-top-1">
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-550">Consultation Date & Time</label>
+                          <input
+                            type="datetime-local"
+                            required
+                            value={apptDatetime}
+                            onChange={(e) => setApptDatetime(e.target.value)}
+                            className="w-full rounded-lg border border-zinc-250 bg-white px-3 py-2 text-xs text-zinc-800 font-semibold font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-550">Consultation Forum</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setApptType('virtual')}
+                              className={`py-1.5 rounded-lg border font-bold capitalize ${apptType === 'virtual' ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-white border-zinc-200 text-zinc-650'}`}
+                            >
+                              VidyoLink Virtual
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setApptType('in_person')}
+                              className={`py-1.5 rounded-lg border font-bold capitalize ${apptType === 'in_person' ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-white border-zinc-200 text-zinc-650'}`}
+                            >
+                              In-Clinic Visit
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-550">Clinical Directives / Session Notes</label>
+                          <textarea
+                            placeholder="E.g. Follow-up predictive scan results and monitor blood glucose indicators..."
+                            rows={2}
+                            value={apptNotes}
+                            onChange={(e) => setApptNotes(e.target.value)}
+                            className="w-full rounded-lg border border-zinc-250 bg-white px-3 py-2 text-xs font-semibold"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isSubmittingAppt}
+                          className="w-full bg-emerald-600 hover:bg-emerald-705 text-white font-bold py-2 rounded-lg text-xs transition-smooth cursor-pointer"
+                        >
+                          {isSubmittingAppt ? 'Registering...' : 'Register and Confirm Appointment'}
+                        </button>
+                      </form>
+                    )}
+
+                    {activeAppointments.length === 0 ? (
+                      <div className="py-6 text-center border border-dashed border-zinc-200 bg-zinc-50/20 rounded-xl text-zinc-400 font-sans text-xs">
+                        No consultations requested by this patient.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                        {activeAppointments.map((appt) => (
+                          <div key={appt.id} className="border border-zinc-200 rounded-xl bg-zinc-50/10 p-3 flex flex-col justify-between gap-2.5">
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] text-zinc-405 font-semibold font-mono">Consultation ID: {appt.id.slice(-5)}</span>
+                                <span className="block font-bold text-xs text-zinc-800">
+                                  {new Date(appt.datetime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                </span>
+                              </div>
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-extrabold capitalize border ${
+                                appt.status === 'confirmed' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                appt.status === 'completed' ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                                appt.status === 'cancelled' ? 'bg-zinc-100 text-zinc-600 border-zinc-200' :
+                                'bg-amber-50 text-amber-800 border-amber-200 animate-pulse'
+                              }`}>
+                                {appt.status}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 text-[10px] text-zinc-500 font-semibold font-sans">
+                              <span className="flex items-center gap-1">
+                                {appt.type === 'virtual' ? <Video className="h-3 w-3 text-emerald-500" /> : <MapPin className="h-3 w-3 text-rose-500" />}
+                                <span className="capitalize">{appt.type}</span>
+                              </span>
+                              {appt.notes && <span className="text-zinc-400 italic font-medium truncate max-w-xs">"{appt.notes}"</span>}
+                            </div>
+
+                            {appt.status !== 'completed' && appt.status !== 'cancelled' && (
+                              <div className="flex gap-2 border-t border-zinc-100 pt-2 text-[10px]">
+                                {appt.status === 'pending' && (
+                                  <button
+                                    onClick={() => handleUpdateApptStatus(appt.id, 'confirmed')}
+                                    className="flex-1 bg-emerald-50 font-bold text-emerald-700 hover:bg-emerald-100 py-1 rounded transition-smooth border border-emerald-200 cursor-pointer text-center"
+                                  >
+                                    Confirm
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleUpdateApptStatus(appt.id, 'completed')}
+                                  className="flex-1 bg-blue-50 font-bold text-blue-700 hover:bg-blue-100 py-1 rounded transition-smooth border border-blue-200 cursor-pointer text-center"
+                                >
+                                  Mark Completed
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateApptStatus(appt.id, 'cancelled')}
+                                  className="flex-1 bg-zinc-100 font-bold text-zinc-600 hover:bg-zinc-150 py-1 rounded transition-smooth border border-zinc-200 cursor-pointer text-center"
+                                >
+                                  Cancel consult
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIGHT COLUMN: Active Therapeutics & Recipes prescription */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10.5px] uppercase font-bold text-zinc-400 font-mono">Pharmacotherapy (Rx)</span>
+                      <button
+                        onClick={() => setShowPrescriptionForm(!showPrescriptionForm)}
+                        className="text-[10.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded transition-smooth cursor-pointer"
+                      >
+                        {showPrescriptionForm ? 'Close Rx Form' : 'Issue Prescription'}
+                      </button>
+                    </div>
+
+                    {showPrescriptionForm && (
+                      <form onSubmit={handlePrescriptionSubmit} className="bg-zinc-50 border border-zinc-200 rounded-xl p-4.5 space-y-3 text-xs animate-in fade-in slide-in-from-top-1">
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-550">Medication Name & Strength</label>
+                          <input
+                            type="text"
+                            placeholder="E.g. Metoprolol Succinate 25mg"
+                            required
+                            value={rxMeds}
+                            onChange={(e) => setRxMeds(e.target.value)}
+                            className="w-full rounded-lg border border-zinc-250 bg-white px-3 py-2 text-xs font-semibold text-zinc-800"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-550">Dosage Regimen</label>
+                          <input
+                            type="text"
+                            placeholder="E.g. One tablet daily with breakfast"
+                            required
+                            value={rxDosage}
+                            onChange={(e) => setRxDosage(e.target.value)}
+                            className="w-full rounded-lg border border-zinc-250 bg-white px-3 py-2 text-xs font-semibold text-zinc-800"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-550">Diagnostic Purpose / Indications</label>
+                          <input
+                            type="text"
+                            placeholder="E.g. Mitigate myocardial load and reduce systolic hypertension"
+                            value={rxIndications}
+                            onChange={(e) => setRxIndications(e.target.value)}
+                            className="w-full rounded-lg border border-zinc-250 bg-white px-3 py-2 text-xs font-semibold text-zinc-800"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isSubmittingRx}
+                          className="w-full bg-emerald-600 hover:bg-emerald-705 text-white font-bold py-2 rounded-lg text-xs transition-smooth cursor-pointer"
+                        >
+                          {isSubmittingRx ? 'Issuing...' : 'Authorize and Record Prescription'}
+                        </button>
+                      </form>
+                    )}
+
+                    {activePrescriptions.length === 0 ? (
+                      <div className="py-6 text-center border border-dashed border-zinc-200 bg-zinc-50/20 rounded-xl text-zinc-400 font-sans text-xs">
+                        No active clinical medications prescribed.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                        {activePrescriptions.map((rx) => (
+                          <div key={rx.id} className="border border-zinc-150 rounded-xl bg-zinc-50/5 p-3 text-xs text-zinc-650 font-medium">
+                            <div className="flex justify-between items-center mb-1">
+                              <strong className="text-zinc-850 font-bold text-[12px]">{rx.medicationName}</strong>
+                              <span className="text-[9px] text-zinc-400 font-mono">{new Date(rx.prescribedAt).toLocaleDateString()}</span>
+                            </div>
+                            <p className="font-semibold text-zinc-550 pb-1.5">Dosage: <strong className="text-zinc-800">{rx.dosage}</strong></p>
+                            {rx.indications && (
+                              <div className="bg-zinc-100/40 p-2 rounded border border-zinc-150 text-[10.5px]">
+                                <span className="font-extrabold uppercase font-mono tracking-wider text-[8px] text-zinc-400 block mb-0.5">Indicated For:</span>
+                                {rx.indications}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               </div>
 

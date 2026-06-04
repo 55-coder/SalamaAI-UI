@@ -1140,36 +1140,6 @@ export default function HealthDataAndForms({ onBackToDashboard }: HealthDataAndF
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wide mb-1.5 font-bold">Taking Blood Pressure medication?</label>
-                    <label className="flex items-center space-x-3 rounded-xl bg-zinc-50 p-3.5 border border-zinc-200 cursor-pointer hover:border-emerald-250 hover:bg-emerald-50/20 transition-smooth select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={haForm.on_bp_medication}
-                        onChange={e => setHaForm({ ...haForm, on_bp_medication: e.target.checked })}
-                        className="rounded bg-white border-zinc-300 text-emerald-600 h-4.5 w-4.5 outline-none cursor-pointer" 
-                      />
-                      <span className="text-xs text-zinc-700 font-bold">Active BP hypermedication</span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wide mb-1.5 font-bold">BP Medication Class Type</label>
-                    <select 
-                      value={haForm.bp_medication_type}
-                      onChange={e => setHaForm({ ...haForm, bp_medication_type: e.target.value })}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-3 text-xs text-zinc-800 font-semibold outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 transition-smooth cursor-pointer"
-                    >
-                      <option value="none">None / No active drugs</option>
-                      <option value="beta-blockers">Beta-blockers (e.g. Metoprolol)</option>
-                      <option value="ace-inhibitors">ACE Inhibitors (e.g. Lisinopril)</option>
-                      <option value="calcium-channel-blockers">Calcium Channel Blockers (e.g. Amlodipine)</option>
-                      <option value="diuretics">Thiazide Diuretics (e.g. Hydrochlorothiazide)</option>
-                    </select>
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wide mb-1.5 font-bold">Additional Clinical Assessment Notes</label>
                   <textarea 

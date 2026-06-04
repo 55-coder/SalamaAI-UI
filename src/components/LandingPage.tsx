@@ -167,7 +167,7 @@ export default function LandingPage({ onStart, onClinicianDemo }: LandingPagePro
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-600 text-white font-bold shadow-md shadow-purple-500/10">
                 <Activity className="h-5 w-5" />
               </div>
-              <h3 className="font-display text-base font-bold text-zinc-900">2. XGBoost & Gemini</h3>
+              <h3 className="font-display text-base font-bold text-zinc-900">2. Ai prediction</h3>
               <p className="font-sans text-xs sm:text-sm text-zinc-550 leading-normal font-normal">
                 The machine learning model projects precise 10-year probabilities, and translates raw statistical attributions using explainable AI values alongside clinical recommendations.
               </p>

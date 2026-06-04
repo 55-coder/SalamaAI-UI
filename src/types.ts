@@ -18,6 +18,8 @@ export interface UserProfile {
   physicalActivity: 'none' | 'low' | 'moderate' | 'high';
   stressLevel: 'low' | 'medium' | 'high';
   sleepQuality: 'poor' | 'fair' | 'good' | 'excellent';
+  on_bp_medication?: boolean;
+  bp_medication_type?: string;
   avatarUrl?: string;
 }
 
