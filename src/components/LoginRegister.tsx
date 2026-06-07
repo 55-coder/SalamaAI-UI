@@ -4,39 +4,24 @@
  */
 
 import React, { useState } from 'react';
-import { Shield, Users, User, ArrowRight, HeartPulse, Sparkles } from 'lucide-react';
+import { Users, User, ArrowRight, HeartPulse } from 'lucide-react';
 import { UserRole } from '../types';
 
 interface LoginRegisterProps {
-  onLogin: (email: string, fullName: string, role: UserRole) => void;
+  onAuthenticate: (payload: { email: string; fullName: string; password: string; role: UserRole; isRegister: boolean }) => void;
 }
 
-export default function LoginRegister({ onLogin }: LoginRegisterProps) {
+export default function LoginRegister({ onAuthenticate }: LoginRegisterProps) {
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('antonynjuguna502@gmail.com');
-  const [fullName, setFullName] = useState('Antony Njuguna');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<UserRole>('patient');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    onLogin(email, fullName || 'Anonymous User', role);
-  };
-
-  const loadDemoUser = (demoRole: UserRole) => {
-    if (demoRole === 'patient') {
-      setEmail('antonynjuguna502@gmail.com');
-      setFullName('Antony Njuguna');
-      setRole('patient');
-    } else if (demoRole === 'clinician') {
-      setEmail('dr.sara@salama.ai');
-      setFullName('Dr. Sara Vance');
-      setRole('clinician');
-    } else if (demoRole === 'admin') {
-      setEmail('admin@salama.ai');
-      setFullName('Super Administrator');
-      setRole('admin');
-    }
+    if (!email || !password) return;
+    onAuthenticate({ email, fullName, password, role, isRegister });
   };
 
   return (
@@ -54,7 +39,7 @@ export default function LoginRegister({ onLogin }: LoginRegisterProps) {
           <p className="font-sans text-xs sm:text-sm text-zinc-500">
             {isRegister 
               ? 'Complete registration to store health data securely.' 
-              : 'Log in using your registered credentials or select a demo user below.'}
+              : 'Log in using your registered credentials to access your clinical dashboard.'}
           </p>
         </div>
 
@@ -85,6 +70,18 @@ export default function LoginRegister({ onLogin }: LoginRegisterProps) {
               />
             </div>
           )}
+
+          <div className="space-y-1.5 text-left">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Password</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 placeholder-zinc-400 outline-none focus:border-emerald-600 focus:bg-zinc-50/50 transition-smooth"
+              placeholder="Enter a secure password"
+            />
+          </div>
 
           {/* Role selector */}
           <div className="space-y-2">
@@ -138,30 +135,6 @@ export default function LoginRegister({ onLogin }: LoginRegisterProps) {
           </button>
         </div>
 
-        {/* Demo Fast Access Panel */}
-        <div className="border-t border-zinc-200 pt-5 mt-4 text-left leading-none space-y-3">
-          <div className="flex items-center space-x-1 text-emerald-600">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span className="text-[11px] font-bold uppercase tracking-wider">Demo Quick Access</span>
-          </div>
-          <p className="text-[10px] text-zinc-500 font-sans leading-normal">
-            Bypass standard forms and instantly configure specific medical workspaces to inspect fully developed profiles:
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => { loadDemoUser('patient'); onLogin('antonynjuguna502@gmail.com', 'Antony Njuguna', 'patient'); }}
-              className="text-[10px] font-semibold px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-lg transition-smooth cursor-pointer shadow-sm"
-            >
-              Antony (Patient)
-            </button>
-            <button
-              onClick={() => { loadDemoUser('clinician'); onLogin('dr.sara@salama.ai', 'Dr. Sara Vance', 'clinician'); }}
-              className="text-[10px] font-semibold px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-lg transition-smooth cursor-pointer shadow-sm"
-            >
-              Dr. Sara (Clinician)
-            </button>
-          </div>
-        </div>
 
       </div>
     </div>

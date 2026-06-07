@@ -14,7 +14,8 @@ interface ProfileManagementProps {
 }
 
 export default function ProfileManagement({ profile, onSave, onBack }: ProfileManagementProps) {
-  const [fullName, setFullName] = useState(profile.fullName);
+  const [firstName, setFirstName] = useState(profile.first_name || '');
+  const [lastName, setLastName] = useState(profile.last_name || '');
   const [age, setAge] = useState(profile.age);
   const [gender, setGender] = useState(profile.gender);
   const [height, setHeight] = useState(profile.height);
@@ -33,7 +34,8 @@ export default function ProfileManagement({ profile, onSave, onBack }: ProfileMa
     e.preventDefault();
     onSave({
       ...profile,
-      fullName,
+      first_name: firstName,
+      last_name: lastName,
       age: Number(age),
       gender,
       height: Number(height),
@@ -88,15 +90,27 @@ export default function ProfileManagement({ profile, onSave, onBack }: ProfileMa
           <div>
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 font-mono mb-3.5 text-left">1. Biographical Baselines</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5 text-left">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs sm:text-sm font-semibold text-zinc-800 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 transition-smooth"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">First Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs sm:text-sm font-semibold text-zinc-800 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 transition-smooth"
+                  />
+                </div>
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Last Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs sm:text-sm font-semibold text-zinc-800 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 transition-smooth"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

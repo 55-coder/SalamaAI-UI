@@ -8,10 +8,9 @@ import { Heart, Activity, LineChart, ShieldCheck, ArrowRight, BrainCircuit, Hear
 
 interface LandingPageProps {
   onStart: () => void;
-  onClinicianDemo: () => void;
 }
 
-export default function LandingPage({ onStart, onClinicianDemo }: LandingPageProps) {
+export default function LandingPage({ onStart }: LandingPageProps) {
   return (
     <div className="bg-slate-50 text-zinc-900 min-h-[calc(100vh-4rem)]">
       {/* Hero Section */}
@@ -38,12 +37,6 @@ export default function LandingPage({ onStart, onClinicianDemo }: LandingPagePro
                 >
                   <span>Evaluate My CVD Risk</span>
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </button>
-                <button
-                  onClick={onClinicianDemo}
-                  className="flex items-center justify-center space-x-2 rounded-xl bg-white border border-zinc-200 px-6 py-3.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 transition-smooth cursor-pointer shadow-sm"
-                >
-                  <span>Enter Clinician Suite</span>
                 </button>
               </div>
               <div className="flex items-center space-x-6 text-xs text-zinc-400 font-mono mt-8 font-semibold">

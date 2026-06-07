@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Users, Database, Terminal, CheckCircle2, RotateCcw } from 'lucide-react';
 import { SystemLog } from '../types';
+import { getUsers } from '../api';
 
 interface AdminDashboardProps {
   logs: SystemLog[];
@@ -17,14 +18,25 @@ export default function AdminDashboard({ logs, onResetDatabase, assessmentsCount
   const [selectedLogsCategory, setSelectedLogsCategory] = useState<'all' | 'ai_prediction' | 'authentication' | 'database'>('all');
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  // Simulated system users array
-  const [systemUsers, setSystemUsers] = useState([
-    { name: 'Antony Njuguna', email: 'antonynjuguna502@gmail.com', role: 'patient', status: 'active', tier: 'premium' },
-    { name: 'Dr. Sara Vance', email: 'dr.sara@salama.ai', role: 'clinician', status: 'active', tier: 'cardiology_lead' },
-    { name: 'Marcus Vance', email: 'marcus.vance@gmail.com', role: 'patient', status: 'active', tier: 'basic' },
-    { name: 'Clara Jones', email: 'clara.jones@gmail.com', role: 'patient', status: 'active', tier: 'basic' },
-    { name: 'Admin Console', email: 'admin@salama.ai', role: 'admin', status: 'active', tier: 'root_level' },
-  ]);
+  // System users loaded from backend
+  const [systemUsers, setSystemUsers] = useState<Array<any>>([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await getUsers();
+        if (!active) return;
+        if (res.ok) {
+          const users = await res.json();
+          setSystemUsers(Array.isArray(users) ? users : []);
+        }
+      } catch (err) {
+        console.error('Failed to load users for admin dashboard:', err);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const handleToggleUserRole = (email: string) => {
     setSystemUsers(prev => prev.map(u => {

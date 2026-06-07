@@ -18,6 +18,17 @@ import {
   Sparkles,
   AlertCircle 
 } from 'lucide-react';
+import {
+  getUserProfile,
+  getBloodPressure,
+  getHeartRate,
+  getHealthAssessments,
+  createUserProfile,
+  updateUserProfile,
+  createBloodPressure,
+  createHeartRate,
+  createHealthAssessment,
+} from '../api';
 
 interface HealthDataAndFormsProps {
   onBackToDashboard: () => void;
@@ -92,28 +103,41 @@ export default function HealthDataAndForms({ onBackToDashboard }: HealthDataAndF
   const loadData = async () => {
     try {
       setLoading(true);
-      const [resProfile, resBp, resHr, resHa] = await Promise.all([
-        fetch('/api/profile').then(r => r.json()),
-        fetch('/api/bp').then(r => r.json()),
-        fetch('/api/hr').then(r => r.json()),
-        fetch('/api/health_assessment').then(r => r.json())
+      const [profileRes, bpRes, hrRes, haRes] = await Promise.all([
+        getUserProfile(),
+        getBloodPressure(),
+        getHeartRate(),
+        getHealthAssessments(),
       ]);
 
-      if (resProfile) {
-        setProfileData(resProfile);
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        setProfileData(profile);
         setProfileForm({
           ...profileForm,
-          ...resProfile,
-          date_of_birth: resProfile.date_of_birth || ''
+          ...profile,
+          date_of_birth: profile.date_of_birth || '',
         });
       }
-      if (resBp) setBpList(resBp);
-      if (resHr) setHrList(resHr);
-      if (resHa) setHaList(resHa);
+
+      if (bpRes.ok) {
+        const bpData = await bpRes.json();
+        setBpList(Array.isArray(bpData) ? bpData : []);
+      }
+
+      if (hrRes.ok) {
+        const hrData = await hrRes.json();
+        setHrList(Array.isArray(hrData) ? hrData : []);
+      }
+
+      if (haRes.ok) {
+        const haData = await haRes.json();
+        setHaList(Array.isArray(haData) ? haData : []);
+      }
 
       setLoading(false);
     } catch (err) {
-      console.error("Error loading clinical data:", err);
+      console.error('Error loading clinical data:', err);
       setLoading(false);
     }
   };
@@ -136,81 +160,82 @@ export default function HealthDataAndForms({ onBackToDashboard }: HealthDataAndF
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profileForm)
-      }).then(r => r.json());
-
-      if (res.success) {
-        setProfileData(res.profile);
+      const profileRequest = profileData ? updateUserProfile(profileForm) : createUserProfile(profileForm);
+      const profileRes = await profileRequest;
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        setProfileData(profile);
         triggerAlertMessage('success', 'User profile parameters synced successfully (Form 1 of 4)');
+      } else {
+        const error = await profileRes.json();
+        throw new Error(error.detail || 'Profile sync failed');
       }
-    } catch (err) {
-      triggerAlertMessage('error', 'Failed to update profile form values.');
+    } catch (err: any) {
+      console.error('Profile submit failed:', err);
+      triggerAlertMessage('error', err.message || 'Failed to update profile form values.');
     }
   };
 
   const handleBpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/bp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...bpForm,
-          start_date_time: new Date(bpForm.start_date_time).toISOString()
-        })
-      }).then(r => r.json());
-
-      if (res.success) {
-        setBpList(prev => [res.bp, ...prev]);
+      const bpRes = await createBloodPressure({
+        ...bpForm,
+        start_date_time: new Date(bpForm.start_date_time).toISOString(),
+      });
+      if (bpRes.ok) {
+        const bp = await bpRes.json();
+        setBpList(prev => [bp, ...prev]);
         triggerAlertMessage('success', 'Blood Pressure log recorded successfully (Form 2 of 4)');
         setActiveTab('form_bp');
+      } else {
+        const error = await bpRes.json();
+        throw new Error(error.detail || 'Blood pressure log failed');
       }
-    } catch (err) {
-      triggerAlertMessage('error', 'Failed to log Blood Pressure values.');
+    } catch (err: any) {
+      console.error('BP submit failed:', err);
+      triggerAlertMessage('error', err.message || 'Failed to log Blood Pressure values.');
     }
   };
 
   const handleHrSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/hr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...hrForm,
-          start_date_time: new Date(hrForm.start_date_time).toISOString()
-        })
-      }).then(r => r.json());
-
-      if (res.success) {
-        setHrList(prev => [res.hr, ...prev]);
+      const hrRes = await createHeartRate({
+        ...hrForm,
+        start_date_time: new Date(hrForm.start_date_time).toISOString(),
+      });
+      if (hrRes.ok) {
+        const hr = await hrRes.json();
+        setHrList(prev => [hr, ...prev]);
         triggerAlertMessage('success', 'Resting Heart Rate log recorded successfully (Form 3 of 4)');
         setActiveTab('form_hr');
+      } else {
+        const error = await hrRes.json();
+        throw new Error(error.detail || 'Heart rate log failed');
       }
-    } catch (err) {
-      triggerAlertMessage('error', 'Failed to log heart rate values.');
+    } catch (err: any) {
+      console.error('HR submit failed:', err);
+      triggerAlertMessage('error', err.message || 'Failed to log heart rate values.');
     }
   };
 
   const handleHaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/health_assessment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(haForm)
-      }).then(r => r.json());
-
-      if (res.success) {
-        setHaList(prev => [res.assessment, ...prev]);
+      const assessmentRes = await createHealthAssessment(haForm);
+      if (assessmentRes.ok) {
+        const assessment = await assessmentRes.json();
+        setHaList(prev => [assessment, ...prev]);
         triggerAlertMessage('success', 'Clinical Health Assessment record filed successfully (Form 4 of 4)');
         setActiveTab('form_ha');
+      } else {
+        const error = await assessmentRes.json();
+        throw new Error(error.detail || 'Health assessment submission failed');
       }
-    } catch (err) {
-      triggerAlertMessage('error', 'Failed to file clinical health assessment.');
+    } catch (err: any) {
+      console.error('Health assessment submit failed:', err);
+      triggerAlertMessage('error', err.message || 'Failed to file clinical health assessment.');
     }
   };
 

@@ -83,59 +83,12 @@ export default function ClinicianDashboard({
     }
   };
 
-  // Extract or backfill the 4-disease structure with explanations for the clinician view
+  // Use API-provided diseasePredictions if available; otherwise return empty list
   const getFourDiseasePredictions = (assessment: Assessment): any[] => {
-    if (assessment.diseasePredictions && assessment.diseasePredictions.length === 4) {
+    if (assessment.diseasePredictions && assessment.diseasePredictions.length > 0) {
       return assessment.diseasePredictions;
     }
-
-    // Backfill based on measurements
-    const m = assessment.measurements;
-    const age = Number(m.age || 28);
-    const systolic = Number(m.systolicBP || 120);
-    const diastolic = Number(m.diastolicBP || 80);
-    const cholesterol = Number(m.cholesterol || 190);
-    const smoking = m.smokingStatus || 'never';
-
-    // cvd
-    const cvdRisk = assessment.cvdRiskPercentage;
-
-    // hyp
-    let hypBase = 12;
-    if (systolic > 115) hypBase += (systolic - 115) * 1.3;
-    if (diastolic > 75) hypBase += (diastolic - 75) * 1.5;
-    if (age > 35) hypBase += (age - 35) * 0.5;
-    const hypRisk = Math.round(Math.max(5, Math.min(99.9, hypBase)));
-
-    // stroke
-    let strokeBase = 4;
-    if (systolic > 115) strokeBase += (systolic - 110) * 0.6;
-    if (age > 40) strokeBase += (age - 35) * 0.5;
-    if (smoking === 'active') strokeBase += 15;
-    const strokeRisk = Math.round(Math.max(2, Math.min(95, strokeBase)));
-
-    // chd
-    let chdBase = 6;
-    if (cholesterol > 180) chdBase += (cholesterol - 180) * 0.3;
-    if (age > 35) chdBase += (age - 35) * 0.5;
-    if (smoking === 'active') chdBase += 12;
-    const chdRisk = Math.round(Math.max(3, Math.min(95, chdBase)));
-
-    const getLabel = (percentage: number) => {
-      if (percentage >= 60) return 'High';
-      if (percentage >= 35) return 'Intermediate';
-      if (percentage >= 15) return 'Borderline';
-      return 'Low';
-    };
-
-    const ts = assessment.timestamp;
-
-    return [
-      { id: 'dp-cvd', disease: 'cvd', risk_score: cvdRisk / 100, risk_percentage: cvdRisk, risk_label: getLabel(cvdRisk), model_version: 'xgbcvd_v3', predicted_at: ts, explanation: `CVD risk is evaluated at ${cvdRisk}% (${getLabel(cvdRisk)}). Calculated chronologically considering patient biometric profiles.` },
-      { id: 'dp-hyp', disease: 'hyp', risk_score: hypRisk / 100, risk_percentage: hypRisk, risk_label: getLabel(hypRisk), model_version: 'xgbhyp_v1', predicted_at: ts, explanation: `Risk of persistent arterial pressure strain calculated heavily based on systolic load of ${systolic} mmHg.` },
-      { id: 'dp-stroke', disease: 'stroke', risk_score: strokeRisk / 100, risk_percentage: strokeRisk, risk_label: getLabel(strokeRisk), model_version: 'xgbstroke_v5', predicted_at: ts, explanation: `Stroke potential factors mechanical arterial resistance combined with active smoking status descriptors.` },
-      { id: 'dp-chd', disease: 'chd', risk_score: chdRisk / 100, risk_percentage: chdRisk, risk_label: getLabel(chdRisk), model_version: 'xgbchd_v2', predicted_at: ts, explanation: `Coronary indicators analyze total serum lipids (${cholesterol} mg/dL) as active plaque deposits coefficients.` }
-    ];
+    return [];
   };
 
   return (

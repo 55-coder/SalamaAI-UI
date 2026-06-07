@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Plus, TrendingUp, Sliders, Settings, Calendar, Heart, ArrowRight, UserCheck } from 'lucide-react';
 import { UserProfile, Assessment } from '../types';
+import { getBloodPressure } from '../api';
 
 interface PatientDashboardProps {
   profile: UserProfile;
@@ -14,6 +15,8 @@ interface PatientDashboardProps {
   onEditProfile: () => void;
   onViewAssessment: (assessment: Assessment) => void;
   onViewHealthData: () => void;
+  currentUserName?: string;
+  currentUserEmail?: string;
 }
 
 interface DiseasePrediction {
@@ -27,6 +30,33 @@ interface DiseasePrediction {
   explanation?: string;
 }
 
+type BloodPressureRecord = {
+  id?: string;
+  start_date_time: string;
+  systolic_value: number;
+  diastolic_value: number;
+  body_posture?: string;
+  measurement_location?: string;
+  temporal_relationship_to_physical_activity?: string;
+  temporal_relationship_to_sleep?: string;
+};
+
+function normalizeBpResponse(data: any): BloodPressureRecord[] {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== 'object') return [];
+
+  const candidates = [data.data, data.results, data.items, data.records, data.values];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  if (data.systolic_value !== undefined && data.diastolic_value !== undefined) {
+    return [data];
+  }
+
+  return [];
+}
+
 export default function PatientDashboard({
   profile,
   assessments,
@@ -34,27 +64,34 @@ export default function PatientDashboard({
   onEditProfile,
   onViewAssessment,
   onViewHealthData,
+  currentUserName,
+  currentUserEmail,
 }: PatientDashboardProps) {
 
   const latestAssessment = assessments[0] || null;
 
-  const [bpList, setBpList] = useState<any[]>([]);
+  const [bpList, setBpList] = useState<BloodPressureRecord[]>([]);
   const [loadingBp, setLoadingBp] = useState<boolean>(true);
 
   useEffect(() => {
     let active = true;
-    fetch('/api/bp')
-      .then(res => res.json())
-      .then(data => {
-        if (active && Array.isArray(data)) {
-          setBpList(data);
-          setLoadingBp(false);
+    getBloodPressure()
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        const bpArray = normalizeBpResponse(data);
+        if (bpArray.length > 0) {
+          setBpList(bpArray);
+        } else {
+          console.warn('BP health-data endpoint returned no valid records:', data);
         }
+        setLoadingBp(false);
       })
-      .catch(err => {
-        console.error("Error fetching bp logs in dashboard:", err);
+      .catch((err) => {
+        console.error('Error fetching bp logs in dashboard:', err);
         setLoadingBp(false);
       });
+
     return () => {
       active = false;
     };
@@ -69,71 +106,12 @@ export default function PatientDashboard({
     }
   };
 
-  // Extract or backfill the 4-disease structure
+  // Extract the 4-disease predictions from the latest assessment (only from API-driven data)
   const getFourDiseasePredictions = (): DiseasePrediction[] => {
-    if (latestAssessment && latestAssessment.diseasePredictions && latestAssessment.diseasePredictions.length === 4) {
+    if (latestAssessment && latestAssessment.diseasePredictions && latestAssessment.diseasePredictions.length > 0) {
       return latestAssessment.diseasePredictions as DiseasePrediction[];
     }
-
-    if (latestAssessment) {
-      // Backfill based on measurements
-      const m = latestAssessment.measurements;
-      const age = Number(m.age || 28);
-      const systolic = Number(m.systolicBP || 120);
-      const diastolic = Number(m.diastolicBP || 80);
-      const cholesterol = Number(m.cholesterol || 190);
-      const glucose = Number(m.bloodGlucose || 95);
-      const smoking = m.smokingStatus || 'never';
-      const bmi = m.weight / Math.pow((m.height / 100), 2);
-
-      // cvd
-      const cvdRisk = latestAssessment.cvdRiskPercentage;
-
-      // hyp
-      let hypBase = 12;
-      if (systolic > 115) hypBase += (systolic - 115) * 1.3;
-      if (diastolic > 75) hypBase += (diastolic - 75) * 1.5;
-      if (age > 35) hypBase += (age - 35) * 0.5;
-      const hypRisk = Math.round(Math.max(5, Math.min(99.9, hypBase)));
-
-      // stroke
-      let strokeBase = 4;
-      if (systolic > 115) strokeBase += (systolic - 115) * 0.6;
-      if (age > 40) strokeBase += (age - 40) * 0.7;
-      if (smoking === 'active') strokeBase += 20;
-      const strokeRisk = Math.round(Math.max(2, Math.min(95, strokeBase)));
-
-      // chd
-      let chdBase = 6;
-      if (cholesterol > 180) chdBase += (cholesterol - 180) * 0.3;
-      if (age > 35) chdBase += (age - 35) * 0.6;
-      if (smoking === 'active') chdBase += 15;
-      const chdRisk = Math.round(Math.max(3, Math.min(95, chdBase)));
-
-      const getLabel = (percentage: number) => {
-        if (percentage >= 60) return 'High';
-        if (percentage >= 35) return 'Intermediate';
-        if (percentage >= 15) return 'Borderline';
-        return 'Low';
-      };
-
-      const ts = latestAssessment.timestamp;
-
-      return [
-        { id: 'dp-cvd', disease: 'cvd', risk_score: cvdRisk / 100, risk_percentage: cvdRisk, risk_label: getLabel(cvdRisk), model_version: 'xgbcvd_v3', predicted_at: ts, explanation: `CVD 10-year risk of ${cvdRisk}% reflects core metrics, chronobiological age, and blood pressure indicators.` },
-        { id: 'dp-hyp', disease: 'hyp', risk_score: hypRisk / 100, risk_percentage: hypRisk, risk_label: getLabel(hypRisk), model_version: 'xgbhyp_v1', predicted_at: ts, explanation: `Arterial tension overload risk (${hypRisk}%) is calculated primarily based on systolic pressure loading.` },
-        { id: 'dp-stroke', disease: 'stroke', risk_score: strokeRisk / 100, risk_percentage: strokeRisk, risk_label: getLabel(strokeRisk), model_version: 'xgbstroke_v5', predicted_at: ts, explanation: `Ischemic stroke potential of ${strokeRisk}% is calculated against vascular shear stress parameters.` },
-        { id: 'dp-chd', disease: 'chd', risk_score: chdRisk / 100, risk_percentage: chdRisk, risk_label: getLabel(chdRisk), model_version: 'xgbchd_v2', predicted_at: ts, explanation: `Coronary indicators evaluate total lipid levels (${cholesterol} mg/dL) as active plaque accumulation coefficients.` }
-      ];
-    }
-
-    // Default requested clinical mock values from the prompt
-    return [
-      { id: 'mock-1', disease: 'cvd', risk_score: 0.327, risk_percentage: 32.7, risk_label: 'High', model_version: 'xgbcvd_v3', predicted_at: '2026-05-27T09:08:46.959Z', explanation: "CVD risk is evaluated with chronobiological metrics and baseline resting hemodynamics." },
-      { id: 'mock-2', disease: 'hyp', risk_score: 0.9991, risk_percentage: 99.91, risk_label: 'High', model_version: 'xgbhyp_v1', predicted_at: '2026-05-27T09:08:46.959Z', explanation: "Hypertension index shows high arterial wall shear stress and vascular resistance." },
-      { id: 'mock-3', disease: 'stroke', risk_score: 0.0002, risk_percentage: 0.02, risk_label: 'Low', model_version: 'xgbstroke_v5', predicted_at: '2026-05-27T09:08:46.959Z', explanation: "Stroke potential is low reflecting resilient blood vessels elastic parameters." },
-      { id: 'mock-4', disease: 'chd', risk_score: 0.0002, risk_percentage: 0.02, risk_label: 'Low', model_version: 'xgbstroke_v5', predicted_at: '2026-05-27T09:08:46.959Z', explanation: "Coronary artery block potential calculation displays protective lipids distribution rates." }
-    ];
+    return [];
   };
 
   const diseaseNames = {
@@ -347,10 +325,10 @@ export default function PatientDashboard({
             Secure Patient Portal Connected
           </span>
           <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-zinc-900 mt-2.5 text-zinc-900">
-            Welcome back, {profile.fullName}
+            Welcome back, {currentUserName || profile.first_name || 'Patient'}
           </h1>
           <p className="font-sans text-xs sm:text-sm text-zinc-500 mt-1 pb-1 leading-relaxed font-semibold">
-            Salama AI provides you with multi-disease cardiac predictions and personalized clinical dashboards. Your demographic coefficients are fully synced to: <strong className="text-zinc-700 font-bold font-mono">{profile.email}</strong>.
+            Salama AI provides you with multi-disease cardiac predictions and personalized clinical dashboards. Your demographic coefficients are fully synced to: <strong className="text-zinc-700 font-bold font-mono">{currentUserEmail || profile.email || ''} </strong>.
           </p>
         </div>
 
@@ -417,7 +395,16 @@ export default function PatientDashboard({
 
       {/* 4 Disease Risk Cards Grid */}
       <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {predictions.map((p) => {
+            {predictions.length === 0 ? (
+              <div className="col-span-full rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
+                <p className="text-sm font-bold text-zinc-900">No model predictions available</p>
+                <p className="text-xs text-zinc-500 mt-2">Run a new telemetry scan to generate disease risk predictions.</p>
+                <div className="mt-4">
+                  <button onClick={onNewScan} className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-xs font-bold">Run Scan</button>
+                </div>
+              </div>
+            ) : (
+              predictions.map((p) => {
           const detail = diseaseNames[p.disease];
           const IconComp = detail.icon;
           return (
@@ -455,7 +442,7 @@ export default function PatientDashboard({
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Active Blood Pressure Assessment Graph */}

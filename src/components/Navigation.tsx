@@ -4,13 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Heart, Bell, Shield, User, Users, Activity, Layers, LogOut } from 'lucide-react';
+import { Heart, Bell, User, Users, LogOut } from 'lucide-react';
 import { UserRole, Notification } from '../types';
 
 interface NavigationProps {
   currentRole: UserRole;
-  setCurrentRole: (role: UserRole) => void;
-  currentUserEmail: string;
+  currentUserEmail?: string;
+  currentUserName?: string;
   notifications: Notification[];
   onMarkRead: (id: string) => void;
   onLogout: () => void;
@@ -18,8 +18,8 @@ interface NavigationProps {
 
 export default function Navigation({
   currentRole,
-  setCurrentRole,
   currentUserEmail,
+  currentUserName,
   notifications,
   onMarkRead,
   onLogout,
@@ -45,41 +45,10 @@ export default function Navigation({
           </div>
         </div>
 
-        {/* Demo Role Switcher Bar */}
-        <div className="hidden md:flex items-center space-x-1 rounded-xl bg-zinc-100/80 p-1 border border-zinc-200">
-          <button
-            onClick={() => setCurrentRole('patient')}
-            className={`flex items-center space-x-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-smooth ${
-              currentRole === 'patient'
-                ? 'bg-white text-emerald-600 shadow-sm border border-zinc-200'
-                : 'text-zinc-500 hover:text-zinc-800'
-            }`}
-          >
-            <User className="h-3.5 w-3.5" />
-            <span>Patient Portal</span>
-          </button>
-          <button
-            onClick={() => setCurrentRole('clinician')}
-            className={`flex items-center space-x-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-smooth ${
-              currentRole === 'clinician'
-                ? 'bg-white text-emerald-600 shadow-sm border border-zinc-200'
-                : 'text-zinc-500 hover:text-zinc-800'
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" />
-            <span>Clinician Dashboard</span>
-          </button>
-          <button
-            onClick={() => setCurrentRole('admin')}
-            className={`flex items-center space-x-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-smooth ${
-              currentRole === 'admin'
-                ? 'bg-white text-emerald-600 shadow-sm border border-zinc-200'
-                : 'text-zinc-500 hover:text-zinc-800'
-            }`}
-          >
-            <Shield className="h-3.5 w-3.5" />
-            <span>Admin Console</span>
-          </button>
+        <div className="hidden md:flex items-center rounded-xl bg-zinc-100/80 p-3 border border-zinc-200">
+          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            {currentRole === 'patient' ? 'Patient Portal' : currentRole === 'clinician' ? 'Clinician Dashboard' : 'Admin Console'}
+          </span>
         </div>
 
         {/* Right side items */}
@@ -158,14 +127,14 @@ export default function Navigation({
 
           {/* User badge */}
           <div className="flex items-center space-x-2.5 border-l border-zinc-200 pl-4">
-            <div className="hidden text-right lg:block">
-              <span className="block font-sans text-xs font-semibold text-zinc-800">
-                {currentUserEmail === 'antonynjuguna502@gmail.com' ? 'Antony Njuguna' : 'Dr. Sara Vance'}
-              </span>
-              <span className="block font-mono text-[9px] text-zinc-500 capitalize font-semibold">
-                {currentRole} Access
-              </span>
-            </div>
+                      <div className="hidden text-right lg:block">
+                        <span className="block font-sans text-xs font-semibold text-zinc-800">
+                          {currentUserName || currentUserEmail || 'Guest'}
+                        </span>
+                        <span className="block font-mono text-[9px] text-zinc-500 capitalize font-semibold">
+                          {currentRole} Access
+                        </span>
+                      </div>
             <button
               onClick={onLogout}
               title="Logout"
@@ -177,36 +146,6 @@ export default function Navigation({
         </div>
       </div>
 
-      {/* Mobile Role Switcher (Compact tab bar) */}
-      <div className="flex border-t border-zinc-200 bg-white p-1.5 md:hidden">
-        <button
-          onClick={() => setCurrentRole('patient')}
-          className={`flex-1 flex items-center justify-center space-x-1.5 rounded-lg py-2 text-xs font-semibold transition-smooth ${
-            currentRole === 'patient' ? 'bg-zinc-100 text-emerald-600 border border-zinc-200/60 shadow-sm' : 'text-zinc-550'
-          }`}
-        >
-          <User className="h-3.5 w-3.5" />
-          <span>Patient</span>
-        </button>
-        <button
-          onClick={() => setCurrentRole('clinician')}
-          className={`flex-1 flex items-center justify-center space-x-1.5 rounded-lg py-2 text-xs font-semibold transition-smooth ${
-            currentRole === 'clinician' ? 'bg-zinc-100 text-emerald-600 border border-zinc-200/60 shadow-sm' : 'text-zinc-550'
-          }`}
-        >
-          <Users className="h-3.5 w-3.5" />
-          <span>Clinician</span>
-        </button>
-        <button
-          onClick={() => setCurrentRole('admin')}
-          className={`flex-1 flex items-center justify-center space-x-1.5 rounded-lg py-2 text-xs font-semibold transition-smooth ${
-            currentRole === 'admin' ? 'bg-zinc-100 text-emerald-600 border border-zinc-200/60 shadow-sm' : 'text-zinc-550'
-          }`}
-        >
-          <Shield className="h-3.5 w-3.5" />
-          <span>Admin</span>
-        </button>
-      </div>
     </header>
   );
 }

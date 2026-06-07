@@ -7,7 +7,9 @@ export type UserRole = 'patient' | 'clinician' | 'admin';
 
 export interface UserProfile {
   email: string;
-  fullName: string;
+  first_name: string;
+  middle_name?: string | null;
+  last_name: string;
   role: UserRole;
   age: number;
   gender: 'male' | 'female' | 'other';
