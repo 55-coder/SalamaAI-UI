@@ -14,7 +14,6 @@ interface PatientDashboardProps {
   onEditProfile: () => void;
   onViewAssessment: (assessment: Assessment) => void;
   onViewHealthData: () => void;
-  onViewAppointments: () => void;
 }
 
 interface DiseasePrediction {
@@ -35,7 +34,6 @@ export default function PatientDashboard({
   onEditProfile,
   onViewAssessment,
   onViewHealthData,
-  onViewAppointments,
 }: PatientDashboardProps) {
 
   const latestAssessment = assessments[0] || null;
@@ -397,24 +395,17 @@ export default function PatientDashboard({
               </p>
             </div>
             
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={onViewHealthData}
-                className="flex flex-col sm:flex-row items-center justify-center space-x-1 border border-zinc-200 hover:border-zinc-350 bg-zinc-50 hover:bg-zinc-105 py-2 px-1 rounded-lg text-[10px] sm:text-[10.5px] font-bold text-zinc-700 transition-smooth cursor-pointer text-center leading-none"
+                className="flex flex-col sm:flex-row items-center justify-center space-x-1 border border-zinc-200 hover:border-zinc-350 bg-zinc-50 hover:bg-zinc-105 py-2.5 px-2 rounded-lg text-[10px] sm:text-[10.5px] font-bold text-zinc-700 transition-smooth cursor-pointer text-center leading-none"
               >
                 <Activity className="h-3.5 w-3.5 text-emerald-600 mb-1 sm:mb-0 sm:mr-1" />
                 <span>Health Forms</span>
               </button>
               <button
-                onClick={onViewAppointments}
-                className="flex flex-col sm:flex-row items-center justify-center space-x-1 border border-blue-200 hover:border-blue-300 bg-blue-50/40 hover:bg-blue-55/65 py-2 px-1 rounded-lg text-[10px] sm:text-[10.5px] font-bold text-blue-750 transition-smooth cursor-pointer text-center leading-none"
-              >
-                <Calendar className="h-3.5 w-3.5 text-blue-600 mb-1 sm:mb-0 sm:mr-1" />
-                <span>Appointments</span>
-              </button>
-              <button
                 onClick={onEditProfile}
-                className="flex flex-col sm:flex-row items-center justify-center space-x-1 border border-emerald-200 hover:border-emerald-300 bg-emerald-50/40 hover:bg-emerald-55/65 py-2 px-1 rounded-lg text-[10px] sm:text-[10.5px] font-bold text-emerald-750 transition-smooth cursor-pointer text-center leading-none"
+                className="flex flex-col sm:flex-row items-center justify-center space-x-1 border border-emerald-200 hover:border-emerald-300 bg-emerald-50/40 hover:bg-emerald-55/65 py-2.5 px-2 rounded-lg text-[10px] sm:text-[10.5px] font-bold text-emerald-750 transition-smooth cursor-pointer text-center leading-none"
               >
                 <Settings className="h-3.5 w-3.5 text-emerald-600 mb-1 sm:mb-0 sm:mr-1" />
                 <span>My Settings</span>

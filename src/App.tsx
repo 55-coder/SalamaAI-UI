@@ -15,7 +15,6 @@ import RiskAssessmentResults from './components/RiskAssessmentResults';
 import ClinicianDashboard from './components/ClinicianDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import HealthDataAndForms from './components/HealthDataAndForms';
-import AppointmentsSection from './components/AppointmentsSection';
 import { Loader2, Heart, RefreshCw } from 'lucide-react';
 
 export default function App() {
@@ -41,7 +40,7 @@ export default function App() {
   });
 
   // Current subview page indicator
-  const [patientTab, setPatientTab] = useState<'dashboard' | 'profile' | 'new_scan' | 'results' | 'health_data' | 'appointments'>('dashboard');
+  const [patientTab, setPatientTab] = useState<'dashboard' | 'profile' | 'new_scan' | 'results' | 'health_data'>('dashboard');
   
   // Currently reviewed assessment
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
@@ -271,14 +270,6 @@ export default function App() {
                   setPatientTab('results');
                 }}
                 onViewHealthData={() => setPatientTab('health_data')}
-                onViewAppointments={() => setPatientTab('appointments')}
-              />
-            )}
-
-            {patientTab === 'appointments' && (
-              <AppointmentsSection
-                profile={patientProfile}
-                onBack={() => setPatientTab('dashboard')}
               />
             )}
 
