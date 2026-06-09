@@ -72,13 +72,26 @@ export default function App() {
   const syncFeeds = async () => {
     try {
       const historyRes = await getPredictionHistory();
-      if (historyRes.ok) {
+        if (historyRes.ok) {
         const rawHistory = await historyRes.json();
+        // DEBUG: surface raw history and explainability presence for troubleshooting
+        try {
+          console.debug('Prediction history raw items count:', (rawHistory || []).length);
+          console.debug('Prediction history sample:', Array.isArray(rawHistory) ? rawHistory.slice(0, 6) : rawHistory);
+          (rawHistory || []).forEach((it: any, idx: number) => {
+            if (it && it.explainability) {
+              console.debug(`history item[${idx}] has explainability keys:`, Object.keys(it.explainability));
+            }
+          });
+        } catch (e) {
+          // non-fatal
+        }
         const grouped = new Map<string, Assessment>();
 
         (rawHistory || []).forEach((item: any) => {
           const timestamp = item.predicted_at || new Date().toISOString();
           const existing = grouped.get(timestamp);
+          const explainability = item.explainability;
           const diseasePrediction = {
             id: item.id ? `${item.id}-${item.disease}` : `dp-${item.disease}-${Math.random().toString(36).slice(2)}`,
             disease: item.disease,
@@ -87,7 +100,10 @@ export default function App() {
             risk_label: item.risk_label || 'Low',
             model_version: item.model_version || 'remote-model',
             predicted_at: timestamp,
-            explanation: item.explanation || '',
+            explanation: explainability?.clinical_summary
+              ? `${explainability.clinical_summary}${explainability.recommendation ? ` ${explainability.recommendation}` : ''}`
+              : item.explanation || '',
+            explainability: explainability || null,
           };
 
           if (existing) {
@@ -95,6 +111,24 @@ export default function App() {
             if (diseasePrediction.disease === 'cvd') {
               existing.cvdRiskPercentage = diseasePrediction.risk_percentage;
               existing.riskCategory = diseasePrediction.risk_label;
+            }
+            const isCvdExplain = diseasePrediction.disease === 'cvd' && explainability;
+            if (isCvdExplain) {
+              existing.explainability = explainability;
+              existing.riskAssessmentId = explainability.risk_assessment_id;
+              existing.summary = explainability.clinical_summary || existing.summary;
+              existing.recommendations = Array.from(new Set([...(existing.recommendations || []), explainability.recommendation].filter(Boolean)));
+            } else if (!existing.explainability && explainability) {
+              existing.explainability = explainability;
+              existing.riskAssessmentId = existing.riskAssessmentId || explainability.risk_assessment_id;
+            }
+            if (!isCvdExplain) {
+              if (explainability?.recommendation) {
+                existing.recommendations = Array.from(new Set([...(existing.recommendations || []), explainability.recommendation]));
+              }
+              if (!existing.summary && explainability?.clinical_summary) {
+                existing.summary = explainability.clinical_summary;
+              }
             }
           } else {
             grouped.set(timestamp, {
@@ -105,9 +139,14 @@ export default function App() {
               measurements: patientProfile,
               cvdRiskPercentage: diseasePrediction.disease === 'cvd' ? diseasePrediction.risk_percentage : 0,
               riskCategory: diseasePrediction.disease === 'cvd' ? diseasePrediction.risk_label : 'Low',
-              summary: `Prediction history loaded from the remote API at ${timestamp}.`,
-              recommendations: ['Keep your profile and health metrics updated so the backend predictors can stay accurate.'],
+              summary: explainability?.clinical_summary || `Prediction history loaded from the remote API at ${timestamp}.`,
+              recommendations: [
+                ...(explainability?.recommendation ? [explainability.recommendation] : []),
+                'Keep your profile and health metrics updated so the backend predictors can stay accurate.'
+              ],
               shapValues: [],
+              explainability: explainability || undefined,
+              riskAssessmentId: explainability?.risk_assessment_id,
               diseasePredictions: [diseasePrediction],
             });
           }
@@ -492,6 +531,8 @@ export default function App() {
             {patientTab === 'results' && selectedAssessment && (
               <RiskAssessmentResults
                 assessment={selectedAssessment}
+                assessments={patientAssessments}
+                onViewAssessment={(a) => setSelectedAssessment(a)}
                 onBack={() => {
                   setSelectedAssessment(null);
                   setPatientTab('dashboard');
@@ -512,6 +553,8 @@ export default function App() {
           selectedAssessment ? (
             <RiskAssessmentResults
               assessment={selectedAssessment}
+              assessments={assessments.filter(a => a.patientEmail.toLowerCase() === selectedAssessment.patientEmail.toLowerCase())}
+              onViewAssessment={(a) => setSelectedAssessment(a)}
               onBack={() => setSelectedAssessment(null)}
             />
           ) : (

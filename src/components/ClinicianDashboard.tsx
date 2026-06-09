@@ -394,8 +394,8 @@ export default function ClinicianDashboard({
                           <span className="font-display text-xl font-extrabold text-zinc-900">{p.risk_percentage.toFixed(1)}%</span>
                           <span className="text-[8px] text-zinc-400 font-mono font-bold">Model: {p.model_version}</span>
                         </div>
-                        <p className="text-[10px] text-zinc-550 leading-relaxed font-semibold">
-                          {p.explanation || `Mathematical forecast risk coefficient at ${p.risk_percentage}% computed successfully.`}
+                        <p className="mt-3.5 text-[10.5px] leading-relaxed text-zinc-500 font-semibold text-left font-sans">
+                          {p.explanation || `Mathematical forecast risk coefficient at ${p.risk_percentage}% computed successfully based on biometric telemetry.`}
                         </p>
                       </div>
                     );

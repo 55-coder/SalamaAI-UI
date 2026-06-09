@@ -49,6 +49,17 @@ export interface ShapValue {
   explanation: string; // Explaining why this feature affected the score
 }
 
+export interface RiskAssessmentExplainability {
+  id: string;
+  risk_assessment_id: string;
+  recommendation?: string;
+  clinical_summary?: string;
+  lime_explanation?: string;
+  inference_time_ms?: number;
+  parsed_top_risk_factors: Array<Record<string, any>>;
+  parsed_shap_values: Record<string, number>;
+}
+
 export interface DiseasePrediction {
   id: string;
   user_id?: string;
@@ -72,6 +83,8 @@ export interface Assessment {
   summary: string;
   recommendations: string[];
   shapValues: ShapValue[];
+  explainability?: RiskAssessmentExplainability;
+  riskAssessmentId?: string;
   diseasePredictions?: DiseasePrediction[];
 }
 

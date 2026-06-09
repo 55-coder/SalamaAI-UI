@@ -159,6 +159,10 @@ export async function getPredictionHistory() {
   return apiFetch('/predictions/predictions/history');
 }
 
+export async function getPredictionExplainability(riskAssessmentId: string) {
+  return apiFetch(`/predictions/predictions/explain/${riskAssessmentId}`);
+}
+
 export async function diagnosePredictions() {
   return apiFetch('/predictions/predictions/diagnose');
 }

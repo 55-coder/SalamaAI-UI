@@ -3,18 +3,42 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Sliders, HelpCircle, FileDown, HeartHandshake, Printer, ArrowLeft, ShieldAlert, CheckCircle, ChevronRight } from 'lucide-react';
-import { Assessment } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Sliders, HelpCircle, FileDown, HeartHandshake, Printer, ArrowLeft, ShieldAlert, CheckCircle, ChevronRight, Activity } from 'lucide-react';
+import { Assessment, RiskAssessmentExplainability } from '../types';
+import { getPredictionExplainability } from '../api';
 import ShapExplanationView from './ShapExplanationView';
 
 interface RiskAssessmentResultsProps {
   assessment: Assessment;
+  assessments?: Assessment[];
+  onViewAssessment?: (assessment: Assessment) => void;
   onBack: () => void;
 }
 
-export default function RiskAssessmentResults({ assessment, onBack }: RiskAssessmentResultsProps) {
+export default function RiskAssessmentResults({ assessment, assessments = [], onViewAssessment, onBack }: RiskAssessmentResultsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'shap'>('overview');
+  const [explainability, setExplainability] = useState<RiskAssessmentExplainability | null>(assessment.explainability || null);
+  const [isExplainLoading, setIsExplainLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Prefer top-level assessment explainability. If missing, fall back to any
+    // per-disease explainability (prefer CVD), so UI surfaces clinical text
+    if (assessment.explainability) {
+      setExplainability(assessment.explainability);
+      return;
+    }
+
+    const cvdDp = assessment.diseasePredictions?.find(d => (d as any).disease === 'cvd' && (d as any).explainability && (d as any).explainability.clinical_summary);
+    const anyDpWithExplain = assessment.diseasePredictions?.find(d => (d as any).explainability && ((d as any).explainability.clinical_summary || (d as any).explainability.recommendation));
+    if (cvdDp && (cvdDp as any).explainability) {
+      setExplainability((cvdDp as any).explainability);
+    } else if (anyDpWithExplain && (anyDpWithExplain as any).explainability) {
+      setExplainability((anyDpWithExplain as any).explainability);
+    } else {
+      setExplainability(null);
+    }
+  }, [assessment]);
 
   const getRiskColor = (cat: string) => {
     switch (cat) {
@@ -24,6 +48,58 @@ export default function RiskAssessmentResults({ assessment, onBack }: RiskAssess
       default: return 'text-emerald-700 bg-emerald-50 border-emerald-150 font-bold';
     }
   };
+
+  useEffect(() => {
+    let active = true;
+    const explainId = assessment.riskAssessmentId || assessment.id;
+
+    if (assessment.explainability || !explainId) return;
+
+    setIsExplainLoading(true);
+    getPredictionExplainability(explainId)
+      .then(async (res) => {
+        if (!active) return null;
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Explain fetch failed: ${res.status} ${errText}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!active || !data) return;
+        setExplainability(data);
+      })
+      .catch((err) => {
+        console.warn('Explainability fetch failed:', err);
+      })
+      .finally(() => {
+        if (active) setIsExplainLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [assessment]);
+
+  const diagnosticSummary = explainability?.clinical_summary || assessment.summary;
+  const recommendationText = explainability?.recommendation || assessment.recommendations.join(' ');
+  const shapValues = useMemo(() => {
+    if (assessment.shapValues && assessment.shapValues.length > 0) {
+      return assessment.shapValues;
+    }
+
+    if (explainability?.parsed_shap_values) {
+      return Object.entries(explainability.parsed_shap_values).map(([feature, value]) => ({
+        featureName: feature,
+        featureValue: 'n/a',
+        shapValueHex: Number(value),
+        percentageContribution: Math.min(100, Math.abs(Number(value)) * 2.5),
+        explanation: `This feature ${Number(value) >= 0 ? 'increased' : 'decreased'} the overall risk by ${Math.abs(Number(value)).toFixed(2)}%.`,
+      }));
+    }
+
+    return [];
+  }, [assessment.shapValues, explainability]);
 
   const getRiskRingColor = (cat: string) => {
     switch (cat) {
@@ -44,8 +120,16 @@ export default function RiskAssessmentResults({ assessment, onBack }: RiskAssess
   });
 
   const getFullDiseasePredictions = () => {
-    if (assessment.diseasePredictions && assessment.diseasePredictions.length === 4) {
-      return assessment.diseasePredictions;
+    // If API-provided disease predictions exist, use them.
+    // Ensure each prediction has an explanation, falling back to a generic one if missing.
+    if (assessment.diseasePredictions && assessment.diseasePredictions.length > 0) {
+      // Map over existing predictions to ensure explanations are always present
+      return assessment.diseasePredictions.map(p => ({
+        ...p,
+        explanation: p.explanation && p.explanation.trim().length > 0
+          ? p.explanation
+          : `Mathematical forecast risk coefficient at ${p.risk_percentage}% computed successfully based on biometric telemetry.`
+      }));
     }
     const m = assessment.measurements;
     const age = Number(m.age || 28);
@@ -296,8 +380,17 @@ export default function RiskAssessmentResults({ assessment, onBack }: RiskAssess
                     <h3 className="font-display font-bold text-zinc-800 text-sm sm:text-base">AI Diagnostic Statement</h3>
                   </div>
                   <p className="font-sans text-xs sm:text-sm text-zinc-700 leading-relaxed font-semibold bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                    {assessment.summary}
+                    {diagnosticSummary}
                   </p>
+                  {isExplainLoading && (
+                    <p className="text-[11px] text-zinc-500 mt-2 font-medium">Loading clinical summary and recommendation...</p>
+                  )}
+                  {recommendationText && (
+                    <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 text-xs text-zinc-700 shadow-sm">
+                      <div className="font-bold text-zinc-900 text-[10px] uppercase tracking-wider mb-2">AI Recommendation</div>
+                      <p className="leading-relaxed">{recommendationText}</p>
+                    </div>
+                  )}
                   
                   {/* Stats list */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
@@ -374,7 +467,25 @@ export default function RiskAssessmentResults({ assessment, onBack }: RiskAssess
                         {/* Diagnostic statement */}
                         <div className="rounded-xl bg-zinc-50 border border-zinc-150 p-3 text-xs text-zinc-650 font-medium leading-relaxed mt-2 text-left">
                           <span className="font-bold text-zinc-800 block mb-0.5">Diagnostic Statement:</span>
-                          {pred.explanation || `Evaluating estimated potential score of ${pred.risk_percentage}% against patient biometric readings.`}
+                          {(
+                            (pred as any).explainability?.clinical_summary || (pred as any).explainability?.recommendation
+                          ) ? (
+                            <div className="space-y-2">
+                              {(pred as any).explainability?.clinical_summary && (
+                                <div className="text-xs text-zinc-700">
+                                  {(pred as any).explainability.clinical_summary}
+                                </div>
+                              )}
+                              {(pred as any).explainability?.recommendation && (
+                                <div className="text-xs text-zinc-700 font-semibold pt-1 border-t border-zinc-100 mt-1">
+                                  <div className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider mb-1">Recommendation</div>
+                                  <div>{(pred as any).explainability.recommendation}</div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            pred.explanation || `Evaluating estimated potential score of ${pred.risk_percentage}% against patient biometric readings.`
+                          )}
                         </div>
                       </div>
                     );
@@ -415,7 +526,32 @@ export default function RiskAssessmentResults({ assessment, onBack }: RiskAssess
 
             </div>
           ) : (
-            <ShapExplanationView shapValues={assessment.shapValues} riskPercentage={assessment.cvdRiskPercentage} />
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center space-x-2">
+                    <ShieldAlert className="h-4 w-4 text-emerald-600" />
+                    <h3 className="font-display font-bold text-sm text-zinc-900">Clinical Summary</h3>
+                  </div>
+                  <p className="mt-3 text-xs leading-relaxed text-zinc-700">
+                    {diagnosticSummary}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center space-x-2">
+                    <HeartHandshake className="h-4 w-4 text-emerald-600" />
+                    <h3 className="font-display font-bold text-sm text-zinc-900">AI Recommendation</h3>
+                  </div>
+                  <p className="mt-3 text-xs leading-relaxed text-zinc-700">
+                    {recommendationText}
+                  </p>
+                </div>
+              </div>
+              {isExplainLoading && (
+                <p className="text-[11px] text-zinc-500">Loading explainability details...</p>
+              )}
+              <ShapExplanationView shapValues={shapValues} riskPercentage={assessment.cvdRiskPercentage} />
+            </div>
           )}
 
         </div>
@@ -426,6 +562,68 @@ export default function RiskAssessmentResults({ assessment, onBack }: RiskAssess
         </div>
 
       </div>
+
+      {/* Prediction History Section */}
+      {assessments.length > 0 && (
+        <div className="mt-12 space-y-6">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 leading-none shadow-sm text-left">
+            <div className="flex items-center justify-between border-b border-zinc-150 pb-4 mb-4">
+              <div className="flex items-center space-x-2.5">
+                <Activity className="h-5 w-5 text-emerald-600" />
+                <h3 className="font-display font-semibold text-zinc-800 text-sm sm:text-base">Cardiovascular Diagnostic Assessments</h3>
+              </div>
+              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[10px] font-sans font-bold text-zinc-650 border border-zinc-200 uppercase tracking-wide shadow-sm">
+                {assessments.length} logged records
+              </span>
+            </div>
+
+            <div className="divide-y divide-zinc-100">
+              {assessments.map((a, idx) => {
+                const isCurrent = a.id === assessment.id;
+                const dateStr = new Date(a.timestamp).toLocaleDateString([], {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                });
+                return (
+                  <div
+                    key={idx}
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between py-4.5 gap-3 rounded-lg px-2 -mx-2 transition-smooth ${isCurrent ? 'bg-emerald-50/40 ring-1 ring-emerald-100/50 shadow-xs' : 'hover:bg-zinc-50/50'}`}
+                  >
+                    <div className="space-y-1 text-left">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-bold text-zinc-800 font-sans">
+                          Assessment scan on {dateStr}
+                        </span>
+                        <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold border leading-none ${getRiskColor(a.riskCategory)}`}>
+                          {a.cvdRiskPercentage}% • {a.riskCategory}
+                        </span>
+                        {isCurrent && <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-100 px-1.5 py-0.5 rounded">Current Portfolio</span>}
+                      </div>
+                      <p className="font-sans text-[11px] text-zinc-500 leading-normal max-w-xl truncate font-normal">
+                        {a.summary}
+                      </p>
+                    </div>
+
+                    {!isCurrent && onViewAssessment && (
+                      <button
+                        onClick={() => {
+                          onViewAssessment(a);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="flex items-center justify-center space-x-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] font-bold text-zinc-600 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition-smooth cursor-pointer shadow-sm"
+                      >
+                        <span>View Portfolio</span>
+                        <ChevronRight className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
